@@ -6,6 +6,7 @@ from bayes_opt import BayesianOptimization
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, roc_auc_score
 
 
 class ModelRun(object):
@@ -56,6 +57,54 @@ class ModelRun(object):
         preds_test /= self.n_fold
         return preds_train, preds_test
 
+
+class SklearnWrapper(object):
+    def __init__(self, clf, params=None):
+        if params:
+            self.clf = clf(**params)
+        else:
+            self.clf = clf
+
+    def fit(self, X_train, y_train, X_val=None, y_val=None, eval_func=None):
+        self.clf.fit(X_train, y_train)
+
+    def predict_proba(self, x):
+        proba = self.clf.predict_proba(x)
+        return proba
+
+    def predict(self, x):
+        return self.clf.predict(x)
+
+    def optimize(self, X_train, y_train, X_eval, y_eval, param_grid, eval_func, is_proba):
+        def fun(**params):
+            for k in params:
+                if type(param_grid[k][0]) is int:
+                    params[k] = int(params[k])
+
+            self.clf.set_params(**params)
+            self.fit(X_train, y_train)
+
+            if is_proba:
+                p_eval = self.predict_proba(X_eval)
+            else:
+                p_eval = self.predict(X_eval)
+
+            best_score = eval_func(y_eval, p_eval)
+
+            return -best_score
+
+        opt = BayesianOptimization(fun, param_grid)
+        opt.maximize(n_iter=100)
+
+        print("Best mae: %.5f, params: %s" % (opt.res['max']['max_val'], opt.res['max']['max_params']))
+
+    def get_name(self):
+        return self.clf.__class__.__name__
+
+    def report(self, y, y_pred):
+        print(self.get_name() + ' report：\n', classification_report(y, y_pred))
+        print(self.get_name() + ' AUC：\n', roc_auc_score(y, y_pred))
+        
 
 class XgbWrapper(object):
     def __init__(self, params):
