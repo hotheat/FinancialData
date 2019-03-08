@@ -101,9 +101,9 @@ class SklearnWrapper(object):
     def get_name(self):
         return self.clf.__class__.__name__
 
-    def report(self, y, y_pred):
+    def report(self, y, y_pred, y_pred_proba):
         print(self.get_name() + ' report：\n', classification_report(y, y_pred))
-        print(self.get_name() + ' AUC：\n', roc_auc_score(y, y_pred))
+        print(self.get_name() + ' AUC：\n', roc_auc_score(y, y_pred_proba))
         
 
 class XgbWrapper(object):
